@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 import logging
 import os
 import sys
@@ -7,7 +9,7 @@ import requests
 import exceptions
 
 from dotenv import load_dotenv
-from http import HTTPStatus
+from requests.exceptions import RequestException
 
 load_dotenv()
 
@@ -35,39 +37,37 @@ def send_message(bot, message):
             chat_id=TELEGRAM_CHAT_ID,
             text=message,
         )
-    except exceptions.TelegramError as error:
-        raise exceptions.TelegramError(
-            f'Не удалось отправить сообщение {error}')
-    else:
         logging.debug(f'Сообщение отправлено {message}')
+    except Exception as error:
+        logging.error(f'Не удалось отправить сообщение: {error}')
 
 
 def get_api_answer(current_timestamp):
     """Получение данных с API."""
-    timestamp = current_timestamp or int(time.time())
     params_request = {
         'url': ENDPOINT,
         'headers': HEADERS,
-        'params': {'from_date': timestamp},
+        'params': {'from_date'},
     }
     try:
         logging.info(
             'Начало запроса: url = {url},'
             'headers = {headers},'
-            'params = {params}'.format(**params_request))
+            'params = {params}'.format(**params_request)
+        )
         homework_statuses = requests.get(**params_request)
-        if homework_statuses.status_code != HTTPStatus.OK:
-            raise exceptions.InvalidResponseCode(
-                'Не удалось получить ответ API, '
-                f'ошибка: {homework_statuses.status_code}'
-                f'причина: {homework_statuses.reason}'
-                f'текст: {homework_statuses.text}')
-        return homework_statuses.json()
-    except Exception:
+    except RequestException:
         raise exceptions.ConnectinError(
-            'Не верный код ответа параметры запроса: url = {url},'
+            'Не удалось получить ответ API,'
             'headers = {headers},'
             'params = {params}'.format(**params_request))
+    if homework_statuses.status_code != HTTPStatus.OK:
+        raise exceptions.InvalidResponseCode(
+            'Не верный код ответа параметры запроса: url = {url}, '
+            f'ошибка: {homework_statuses.status_code}'
+            f'причина: {homework_statuses.reason}'
+            f'текст: {homework_statuses.text}')
+    return homework_statuses.json()
 
 
 def check_response(response):
@@ -109,9 +109,9 @@ def main():
     if not check_tokens():
         logging.critical('Отсутствует необходимое кол-во'
                          ' переменных окружения')
-        sys.exit('Отсутсвуют переменные окружения')
+        raise ValueError('Отсутсвуют переменные окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
+    current_timestamp = 0
     current_report = {
         'name': '',
         'output': ''
@@ -132,7 +132,7 @@ def main():
             if current_report != prev_report:
                 verdict = HOMEWORK_VERDICTS.get(
                     current_report["output"], "Неизвестный статус работы")
-                send = f' {current_report["name"]},  {verdict}'
+                send = f'{verdict}'
                 send_message(bot, send)
                 prev_report = current_report.copy()
             else:
