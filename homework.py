@@ -1,15 +1,16 @@
-from http import HTTPStatus
-
 import logging
 import os
 import sys
-import telegram
 import time
-import requests
-import exceptions
+from http import HTTPStatus
 
+import requests
+import telegram
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
+from exceptions import MissingTokenError
+
+import exceptions
 
 load_dotenv()
 
@@ -38,7 +39,7 @@ def send_message(bot, message):
             text=message,
         )
         logging.debug(f'Сообщение отправлено {message}')
-    except Exception as error:
+    except exceptions.TelegramError as error:
         logging.error(f'Не удалось отправить сообщение: {error}')
 
 
@@ -47,7 +48,7 @@ def get_api_answer(current_timestamp):
     params_request = {
         'url': ENDPOINT,
         'headers': HEADERS,
-        'params': {'from_date'},
+        'params': {'from_date': current_timestamp},
     }
     try:
         logging.info(
@@ -66,7 +67,8 @@ def get_api_answer(current_timestamp):
             'Не верный код ответа параметры запроса: url = {url}, '
             f'ошибка: {homework_statuses.status_code}'
             f'причина: {homework_statuses.reason}'
-            f'текст: {homework_statuses.text}')
+            f'текст: {homework_statuses.text}'
+        )
     return homework_statuses.json()
 
 
@@ -109,7 +111,7 @@ def main():
     if not check_tokens():
         logging.critical('Отсутствует необходимое кол-во'
                          ' переменных окружения')
-        raise ValueError('Отсутсвуют переменные окружения')
+        raise MissingTokenError('Отсутсвуют переменные окружения')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = 0
     current_report = {
@@ -132,8 +134,7 @@ def main():
             if current_report != prev_report:
                 verdict = HOMEWORK_VERDICTS.get(
                     current_report["output"], "Неизвестный статус работы")
-                send = f'{verdict}'
-                send_message(bot, send)
+                send_message(bot, {verdict})
                 prev_report = current_report.copy()
             else:
                 logging.debug('Статус не поменялся')

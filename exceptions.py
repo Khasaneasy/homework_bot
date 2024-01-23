@@ -12,6 +12,7 @@ class ProblemDescriptions(Exception):
 
 class InvalidResponseCode(Exception):
     """Не верный код ответа."""
+    
     pass
 
 
@@ -29,5 +30,11 @@ class EmptyResponseFromAPI(NotForSending):
 
 class TelegramError(NotForSending):
     """Ошибка телеграма."""
+
+    pass
+
+
+class MissingTokenError(Exception):
+    """Исключение, указывающее на отсутствие необходимого токена."""
 
     pass
