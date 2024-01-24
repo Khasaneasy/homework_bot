@@ -8,9 +8,9 @@ import requests
 import telegram
 from dotenv import load_dotenv
 from requests.exceptions import RequestException
-from exceptions import MissingTokenError
 
 import exceptions
+from exceptions import MissingTokenError
 
 load_dotenv()
 
@@ -39,7 +39,7 @@ def send_message(bot, message):
             text=message,
         )
         logging.debug(f'Сообщение отправлено {message}')
-    except exceptions.TelegramError as error:
+    except telegram.error.TelegramError as error:
         logging.error(f'Не удалось отправить сообщение: {error}')
 
 
@@ -61,7 +61,8 @@ def get_api_answer(current_timestamp):
         raise exceptions.ConnectinError(
             'Не удалось получить ответ API,'
             'headers = {headers},'
-            'params = {params}'.format(**params_request))
+            'params = {params}'.format(**params_request)
+        )
     if homework_statuses.status_code != HTTPStatus.OK:
         raise exceptions.InvalidResponseCode(
             'Не верный код ответа параметры запроса: url = {url}, '
@@ -123,7 +124,8 @@ def main():
         try:
             response = get_api_answer(current_timestamp)
             current_timestamp = response.get(
-                'current_data', current_timestamp)
+                'current_data', current_timestamp
+            )
             new_homeworks = check_response(response)
             if new_homeworks:
                 homework = new_homeworks[0]
@@ -134,7 +136,7 @@ def main():
             if current_report != prev_report:
                 verdict = HOMEWORK_VERDICTS.get(
                     current_report["output"], "Неизвестный статус работы")
-                send_message(bot, {verdict})
+                send_message(bot, verdict)
                 prev_report = current_report.copy()
             else:
                 logging.debug('Статус не поменялся')
@@ -147,7 +149,8 @@ def main():
             logging.error(message)
             if current_report != prev_report:
                 verdict = HOMEWORK_VERDICTS.get(
-                    current_report["output"], "Неизвестный статус работы")
+                    current_report["output"], "Неизвестный статус работы"
+                )
                 send_message(bot, f'{current_report["name"]}, {verdict}')
                 prev_report = current_report.copy()
         finally:
